@@ -10,7 +10,6 @@ import re
 import socket
 import sys
 import time
-import xml.etree.ElementTree
 
 from ..compat import (
     compat_cookiejar,
@@ -23,6 +22,7 @@ from ..compat import (
     compat_urllib_request,
     compat_urlparse,
     compat_str,
+    compat_etree_fromstring,
 )
 from ..utils import (
     NO_DEFAULT,
@@ -310,11 +310,11 @@ class InfoExtractor(object):
     @classmethod
     def ie_key(cls):
         """A string for getting the InfoExtractor with get_info_extractor"""
-        return cls.__name__[:-2]
+        return compat_str(cls.__name__[:-2])
 
     @property
     def IE_NAME(self):
-        return type(self).__name__[:-2]
+        return compat_str(type(self).__name__[:-2])
 
     def _request_webpage(self, url_or_request, video_id, note=None, errnote=None, fatal=True):
         """ Returns the response handle """
@@ -461,7 +461,7 @@ class InfoExtractor(object):
             return xml_string
         if transform_source:
             xml_string = transform_source(xml_string)
-        return xml.etree.ElementTree.fromstring(xml_string.encode('utf-8'))
+        return compat_etree_fromstring(xml_string.encode('utf-8'))
 
     def _download_json(self, url_or_request, video_id,
                        note='Downloading JSON metadata',
@@ -943,13 +943,14 @@ class InfoExtractor(object):
             if re.match(r'^https?://', u)
             else compat_urlparse.urljoin(m3u8_url, u))
 
-        m3u8_doc, urlh = self._download_webpage_handle(
+        res = self._download_webpage_handle(
             m3u8_url, video_id,
             note=note or 'Downloading m3u8 information',
             errnote=errnote or 'Failed to download m3u8 information',
             fatal=fatal)
-        if m3u8_doc is False:
-            return m3u8_doc
+        if res is False:
+            return res
+        m3u8_doc, urlh = res
         m3u8_url = urlh.geturl()
         last_info = None
         last_media = None
