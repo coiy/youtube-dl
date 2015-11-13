@@ -703,7 +703,7 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
 
     def _extract_signature_function(self, video_id, player_url, example_sig):
         id_m = re.match(
-            r'.*?-(?P<id>[a-zA-Z0-9_-]+)(?:/watch_as3|/html5player(?:-new)?)?\.(?P<ext>[a-z]+)$',
+            r'.*?-(?P<id>[a-zA-Z0-9_-]+)(?:/watch_as3|/html5player(?:-new)?|/base)?\.(?P<ext>[a-z]+)$',
             player_url)
         if not id_m:
             raise ExtractorError('Cannot identify player %r' % player_url)
@@ -1107,6 +1107,17 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
                     if not video_info:
                         video_info = get_video_info
                     if 'token' in get_video_info:
+                        # Different get_video_info requests may report different results, e.g.
+                        # some may report video unavailability, but some may serve it without
+                        # any complaint (see https://github.com/rg3/youtube-dl/issues/7362,
+                        # the original webpage as well as el=info and el=embedded get_video_info
+                        # requests report video unavailability due to geo restriction while
+                        # el=detailpage succeeds and returns valid data). This is probably
+                        # due to YouTube measures against IP ranges of hosting providers.
+                        # Working around by preferring the first succeeded video_info containing
+                        # the token if no such video_info yet was found.
+                        if 'token' not in video_info:
+                            video_info = get_video_info
                         break
         if 'token' not in video_info:
             if 'reason' in video_info:
@@ -1332,7 +1343,7 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
                                 player_desc = 'flash player %s' % player_version
                             else:
                                 player_version = self._search_regex(
-                                    r'html5player-([^/]+?)(?:/html5player(?:-new)?)?\.js',
+                                    [r'html5player-([^/]+?)(?:/html5player(?:-new)?)?\.js', r'(?:www|player)-([^/]+)/base\.js'],
                                     player_url,
                                     'html5 player', fatal=False)
                                 player_desc = 'html5 player %s' % player_version
